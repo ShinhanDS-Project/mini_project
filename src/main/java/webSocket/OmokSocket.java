@@ -19,6 +19,11 @@ import javax.websocket.Session;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 
+import org.apache.tomcat.util.json.JSONParser;
+import org.json.JSONObject;
+
+import chat.ChatRequest;
+import chat.ChatService;
 import domain.GameRoom;
 import domain.Player;
 import vo.UserVO;
@@ -28,7 +33,7 @@ import vo.UserVO;
 public class OmokSocket {
     // 전체 방 목록
     private static Map<String, GameRoom> rooms = new ConcurrentHashMap<String, GameRoom>();
-    
+    private ChatService chatService;
     //소켓 연결만 관여하기 
     @OnOpen
     public void onOpen(Session session, @PathParam("roomId") String roomId) {
@@ -51,9 +56,18 @@ public class OmokSocket {
     @OnMessage
     public void onMessage(String msg, Session session) {
         String roomId = (String) session.getUserProperties().get("roomId");
-//        if (roomId == null) return;
-        
         GameRoom room = rooms.computeIfAbsent(roomId, k -> new GameRoom());
+        
+        Player player = (Player) session.getUserProperties().get("player");
+        
+        if (msg.startsWith("{")) {
+        	
+        	ChatRequest chatRequest = parseChat(msg, player); // JSON → 객체
+            chatService.handle(chatRequest, player, room);
+            return;
+            
+        }
+
         
         //메시지타입이 JOIN일 경우 처리
         if (msg.startsWith("JOIN:")) {
@@ -63,7 +77,6 @@ public class OmokSocket {
 
             String loginId = msg.substring(5);
             
-            Player player = new Player();
             player.setUserSession(session);
             
             HttpSession httpSession = (HttpSession) session.getUserProperties().get("httpSession");
@@ -100,14 +113,25 @@ public class OmokSocket {
         }
         
         //오목 게임 메시지 처리(JOIN 이후만 가능)
-        Player player = (Player) session.getUserProperties().get("player");
         if (player == null) return;
         room.processMove(msg, player);
         
         
     }
     
-    @OnClose
+	private ChatRequest parseChat(String msg, Player player) {
+		//json 파싱 
+    	JSONObject json = new JSONObject(msg);
+    	JSONObject jsonPayload = new JSONObject(json.getString("payload"));
+    	
+    	String type = json.getString("type");
+    	String kind = json.getString("kind");
+    	String content = json.getString("content");
+    	
+    	return new ChatRequest(type, kind, content);
+	}
+
+	@OnClose
     public void onClose(Session session) {
         // 퇴장 처리는 간단하게 생략 (실제론 방에서 제거해줘야 함)
         System.out.println("연결 종료: " + session.getId());
