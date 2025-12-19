@@ -5,26 +5,37 @@ import javax.websocket.Session;
 
 import org.json.JSONObject;
 
+import lombok.Data;
+
 import java.io.IOException;
 import java.util.Random;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+
+@Data
 public class GameRoom {
 	private String roomId;
     private String title;
     private Player player1;
     private Player player2;
-    private int limitTime;
+    private int timeLimit; // 초 단위
+    private ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+    private ScheduledFuture<?> timerTask;
     private Boolean gameStatus; //flase: 대기중/ true: 게임중
     private OmokRule rule;
+	private Player currentPlayer;
     
     private static final int BLACK = 1;
     private static final int WHITE = 2;
     
-    //방 생성될 때 오목 규칙 객체 생성
-    public GameRoom() {
-        this.rule = new OmokRule();
-    }
-    
-    // 유저 입장 (동기화 필수)
+    //방 생성될 때 오목 규칙이랑 시간 지정
+    public GameRoom(int timeLimit) {
+    	this.rule = new OmokRule();
+    	this.timeLimit = timeLimit;
+	}
+
+	// 유저 입장 (동기화 필수)
     public synchronized void enterUser(Player player) {
         if (player1 == null) {
         	player1 = player;
@@ -39,6 +50,8 @@ public class GameRoom {
             try { player.getUserSession().close(); } catch(Exception e){}
         }
     }
+    
+    
     // 게임 시작 (랜덤 역할 분배)
     private void startGame() {
     	System.out.println("p1: "+player1);
@@ -60,6 +73,34 @@ public class GameRoom {
         //시작문구 안내
         sendMessage(player1, "START: "+ player1.getStone());
         sendMessage(player2, "START: "+ player2.getStone()); 
+        
+        //블랙부터 타이머 시작.
+        startTimer(player1);
+    }
+    
+ // ★ 타이머 시작 메서드
+    private void startTimer(Player turnPlayer) {
+        currentPlayer = turnPlayer;
+        player1.sendMessage("OPPNAME:" + p2.getSession().getUserProperties().get("name"));
+        // 민수한테 -> "OPPONENT_NAME:철수"
+        p2.sendMessage("OPPNAME:" + p1.getSession().getUserProperties().get("name"));
+        // 기존 타이머 취소
+        if (timerTask != null && !timerTask.isDone()) {
+            timerTask.cancel(true);
+        }
+        // 클라이언트들에게 타이머 리셋 신호 전송
+        broadcast("TIMER:" + timeLimit);
+        // 시간 초과 시 실행될 작업 예약
+        timerTask = scheduler.schedule(() -> {
+            handleTimeOut(turnPlayer);
+        }, timeLimit, TimeUnit.SECONDS);
+    }
+    
+ // ★ 시간 초과 처리
+    private void handleTimeOut(Player loser) {
+        String winnerColor = (loser == blackPlayer) ? "WHITE" : "BLACK";
+        broadcast("WIN:" + winnerColor + " (시간초과)");
+        // 추가 게임 종료 로직이 있다면 여기에 작성
     }
     
     

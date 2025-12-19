@@ -1,16 +1,8 @@
 package webSocket;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.websocket.OnClose;
 import javax.websocket.OnMessage;
@@ -19,10 +11,6 @@ import javax.websocket.Session;
 import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 
-import org.apache.tomcat.util.json.JSONParser;
-import org.json.JSONObject;
-
-import chat.ChatRequest;
 import chat.ChatService;
 import domain.GameRoom;
 import domain.Player;
@@ -37,13 +25,32 @@ public class OmokSocket {
     @OnOpen
     public void onOpen(Session session, @PathParam("roomId") String roomId) {
         System.out.println("연결됨: " + roomId);
-//        // 방이 없으면 생성, 있으면 가져오기
-//        GameRoom room = rooms.computeIfAbsent(roomId, k -> new GameRoom());
-//        
-//        //player 생성
-//        Player player = new Player();
-//        player.setUserSession(session);
-//        
+     
+        // 1. URL 쿼리스트링에서 시간 제한 파라미터 읽기 (예: ?time=30)
+        String queryString = session.getQueryString();
+        int timeLimit = 30; // 기본값 30초
+        if (queryString != null) {
+            try {
+                // "time=30" 같은 문자열 파싱
+                for (String param : queryString.split("&")) {
+                    String[] pair = param.split("=");
+                    if (pair.length == 2 && pair[0].equals("time")) {
+                        timeLimit = Integer.parseInt(pair[1]);
+                    }
+                }
+            } catch (Exception e) {
+                // 파싱 에러나면 기본값 유지
+            }
+        }
+        
+     // 2. 방 입장 (방이 없으면 만들 때 timeLimit을 사용!)
+        // 람다식에서 쓰기 위해 final 변수로 복사
+        final int finalTime = timeLimit;
+        GameRoom room = rooms.computeIfAbsent(roomId, k -> new GameRoom(finalTime));
+        room.enterUser(newPlayer);
+        System.out.println("입장: " + tempName + " (방: " + roomId + ", 시간: " + room.getTimeLimit() + "초)");
+        
+        
        // 세션에 방 ID 저장 (나중에 쓰려고)
         session.getUserProperties().put("roomId", roomId);
 
