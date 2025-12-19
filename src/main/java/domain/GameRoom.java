@@ -1,6 +1,10 @@
 package domain;
 
+import javax.websocket.EncodeException;
 import javax.websocket.Session;
+
+import org.json.JSONObject;
+
 import java.io.IOException;
 import java.util.Random;
 public class GameRoom {
@@ -89,9 +93,26 @@ public class GameRoom {
     }
     
     // 메시지 뿌리기
-    private void broadcast(String msg) {
+    public void broadcast(String msg) {
+    	System.out.println("broadcast, String이다");
     	if (player1 != null) sendMessage(player1, msg);
         if (player2 != null) sendMessage(player2, msg);
+    }
+    
+    public void broadcast(JSONObject json) {
+    	System.out.println("broadcast, json이다");
+    	if (player1 != null)
+			try {
+				sendMessage(player1, json);
+			} catch (EncodeException e) {
+				e.printStackTrace();
+			}
+        if (player2 != null)
+			try {
+				sendMessage(player2, json);
+			} catch (EncodeException e) {
+				e.printStackTrace();
+			}
     }
     
     private void sendMessage(Player player, String msg) {
@@ -101,4 +122,15 @@ public class GameRoom {
             }
         } catch (IOException e) { e.printStackTrace(); }
     }
+    
+    private void sendMessage(Player player, JSONObject json) throws EncodeException {
+        try {
+            if (player.getUserSession() != null && player.getUserSession().isOpen()) {
+            	player.getUserSession().getBasicRemote().sendObject(json);
+            }
+        } catch (IOException e) { e.printStackTrace(); }
+    }
+    
+    
+    
 }

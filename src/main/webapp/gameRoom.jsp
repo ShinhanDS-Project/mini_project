@@ -237,8 +237,10 @@ document.addEventListener("DOMContentLoaded", () => {
 	    btn.onclick = () => {
 	        ws.send(JSON.stringify({
 	            type: "CHAT",
-	            kind: "EMOJI",
-	            content: btn.dataset.emoji
+	            payload : {
+		            kind: "EMOJI",
+		            content: btn.dataset.emoji
+	            }
 	        }));
 	    };
 	});
@@ -251,8 +253,10 @@ document.addEventListener("DOMContentLoaded", () => {
 	
 	        ws.send(JSON.stringify({
 	            type: "CHAT",
-	            kind: "TEXT",
-	            content: text
+	            payload : {
+		            kind: "TEXT",
+		            content: text
+	            }
 	        }));
 	
 	        chatInput.value = "";

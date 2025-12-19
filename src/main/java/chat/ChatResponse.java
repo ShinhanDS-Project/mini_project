@@ -1,7 +1,5 @@
 package chat;
 
-import java.io.IOException;
-
 import domain.Player;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -17,4 +15,7 @@ public class ChatResponse {
     private String content;
     private long time;
     private Player player;   // 보내는 사람 정보
+    
+    
+    
 }

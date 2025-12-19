@@ -33,7 +33,6 @@ import vo.UserVO;
 public class OmokSocket {
     // 전체 방 목록
     private static Map<String, GameRoom> rooms = new ConcurrentHashMap<String, GameRoom>();
-    private ChatService chatService;
     //소켓 연결만 관여하기 
     @OnOpen
     public void onOpen(Session session, @PathParam("roomId") String roomId) {
@@ -45,11 +44,9 @@ public class OmokSocket {
 //        Player player = new Player();
 //        player.setUserSession(session);
 //        
-//        // 세션에 방 ID 저장 (나중에 쓰려고)
+       // 세션에 방 ID 저장 (나중에 쓰려고)
         session.getUserProperties().put("roomId", roomId);
-//        
-//        // 방 입장
-//        room.enterUser(player);
+
     }
     
     //join, put, chat 등 로직 처리 관여 
@@ -57,19 +54,8 @@ public class OmokSocket {
     public void onMessage(String msg, Session session) {
         String roomId = (String) session.getUserProperties().get("roomId");
         GameRoom room = rooms.computeIfAbsent(roomId, k -> new GameRoom());
-        
-        Player player = (Player) session.getUserProperties().get("player");
-        
-        if (msg.startsWith("{")) {
-        	
-        	ChatRequest chatRequest = parseChat(msg, player); // JSON → 객체
-            chatService.handle(chatRequest, player, room);
-            return;
-            
-        }
 
-        
-        //메시지타입이 JOIN일 경우 처리
+        //메시지타입이 JOIN일 경우 처리 => 이게 항상 최상단에서 먼저 이루어져야 함
         if (msg.startsWith("JOIN:")) {
 
             // 이미 입장한 경우 무시
@@ -77,13 +63,14 @@ public class OmokSocket {
 
             String loginId = msg.substring(5);
             
+            Player player = new Player();
             player.setUserSession(session);
             
             HttpSession httpSession = (HttpSession) session.getUserProperties().get("httpSession");
 
             UserVO userVO = null;
             if (httpSession != null) {
-                userVO = (UserVO) httpSession.getAttribute("loginId");
+//                userVO.setUserId(httpSession.getAttribute("loginId"));
             }
             
             if (userVO != null) {
@@ -112,24 +99,18 @@ public class OmokSocket {
             return;
         }
         
+        Player player = (Player) session.getUserProperties().get("player");
         //오목 게임 메시지 처리(JOIN 이후만 가능)
         if (player == null) return;
+        
+        if (msg.startsWith("{")) {
+        	ChatService chatService = new ChatService();
+            chatService.handle(msg, player, room);
+            return;
+        }
+        
         room.processMove(msg, player);
-        
-        
     }
-    
-	private ChatRequest parseChat(String msg, Player player) {
-		//json 파싱 
-    	JSONObject json = new JSONObject(msg);
-    	JSONObject jsonPayload = new JSONObject(json.getString("payload"));
-    	
-    	String type = json.getString("type");
-    	String kind = json.getString("kind");
-    	String content = json.getString("content");
-    	
-    	return new ChatRequest(type, kind, content);
-	}
 
 	@OnClose
     public void onClose(Session session) {

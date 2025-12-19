@@ -19,8 +19,11 @@ public class ChatRequest {
     private Player player; 
     
     
-    public ChatRequest(String type2, String kind2, String content2) {
-    	// TODO Auto-generated constructor stub
+    public ChatRequest(String type, String kind, String content, Player player) {
+    	this.type = type;
+    	this.kind = kind;
+    	this.content = content;
+    	this.player = player;
     }
     
     public ChatRequest(String type, String kind, String content, long time) {
@@ -31,12 +34,12 @@ public class ChatRequest {
     }
 
     //메시지가 CHAT인지 -> 추후 OMOK, JOIN도 json 요청 응답으로 변경하면 해당 메서드 추가 
-    public boolean isChat() {
+    public boolean isChat(String type) {
         return "CHAT".equals(type);
     }
     
-    //전송된 메시지 유효성 검사 (텍스트 길이 제한)
-    public boolean isValid() {
+    //전송된 메시지 종류에 따른 유효성 검사 (텍스트면 길이 제한)
+    public boolean isValid(String kind) {
         if ("TEXT".equals(kind)) {
             return content != null && content.length() <= 30;
         }
